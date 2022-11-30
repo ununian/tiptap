@@ -4,10 +4,46 @@ import { Decoration, DecorationSet, EditorView } from 'prosemirror-view'
 
 import { findSuggestionMatch } from './findSuggestionMatch'
 
+function waitForElm(selector: string, dom?: HTMLElement, once = false, timeout = 1000) {
+  return new Promise<Element | null>(resolve => {
+    const target = dom || document.body
+
+    if (target.querySelector(selector)) {
+      resolve(target.querySelector(selector))
+      return
+    }
+    if (once) {
+      resolve(null)
+      return
+    }
+
+    let found = false
+    const observer = new MutationObserver(() => {
+      if (target.querySelector(selector)) {
+        found = true
+        resolve(target.querySelector(selector))
+        observer.disconnect()
+      }
+    })
+
+    setTimeout(() => {
+      if (!found) {
+        observer.disconnect()
+        resolve(null)
+      }
+    }, timeout)
+
+    observer.observe(target, {
+      childList: true,
+      subtree: true,
+    })
+  })
+}
+
 export interface SuggestionOptions<I = any> {
   pluginKey?: PluginKey,
   editor: Editor,
-  char?: string,
+  char?: string | string[],
   allowSpaces?: boolean,
   allowedPrefixes?: string[] | null,
   startOfLine?: boolean,
@@ -59,9 +95,9 @@ export const SuggestionPluginKey = new PluginKey('suggestion')
 export function Suggestion<I = any>({
   pluginKey = SuggestionPluginKey,
   editor,
-  char = '@',
+  char = ['@', '＠'],
   allowSpaces = false,
-  allowedPrefixes = [' '],
+  allowedPrefixes = [' ', '　'],
   startOfLine = false,
   decorationTag = 'span',
   decorationClass = 'suggestion',
@@ -87,6 +123,7 @@ export function Suggestion<I = any>({
           const moved = prev.active && next.active && prev.range.from !== next.range.from
           const started = !prev.active && next.active
           const stopped = prev.active && !next.active
+
           const changed = !started && !stopped && prev.query !== next.query
           const handleStart = started || moved
           const handleChange = changed && !moved
@@ -96,11 +133,11 @@ export function Suggestion<I = any>({
           if (!handleStart && !handleChange && !handleExit) {
             return
           }
-
           const state = handleExit && !handleStart
             ? prev
             : next
-          const decorationNode = view.dom.querySelector(`[data-decoration-id="${state.decorationId}"]`)
+
+          const decorationNode = await waitForElm(`[data-decoration-id="${state.decorationId}"]`, view.dom, handleExit)
 
           props = {
             editor,
@@ -216,7 +253,7 @@ export function Suggestion<I = any>({
 
           // Try to match against where our cursor currently is
           const match = findSuggestionMatch({
-            char,
+            char: Array.isArray(char) ? char : [char],
             allowSpaces,
             allowedPrefixes,
             startOfLine,
