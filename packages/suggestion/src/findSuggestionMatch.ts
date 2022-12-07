@@ -29,6 +29,7 @@ export function findSuggestionMatch(config: Trigger): SuggestionMatch {
   } = config
 
   const escapedChar = getRegex(char)
+
   const suffix = new RegExp(`\\s${escapedChar}$`)
   const prefix = startOfLine ? '^' : ''
   const regexp = allowSpaces
@@ -47,6 +48,7 @@ export function findSuggestionMatch(config: Trigger): SuggestionMatch {
   if (!match || match.input === undefined || match.index === undefined) {
     return null
   }
+  console.log('🚀 ~ file: findSuggestionMatch.ts:49 ~ findSuggestionMatch ~ match', match)
 
   // JavaScript doesn't have lookbehinds. This hacks a check that first character
   // is a space or the start of the line
@@ -75,7 +77,7 @@ export function findSuggestionMatch(config: Trigger): SuggestionMatch {
         from,
         to,
       },
-      query: match[0].slice(char.length),
+      query: match[0].slice(match[1].length),
       text: match[0],
     }
   }
